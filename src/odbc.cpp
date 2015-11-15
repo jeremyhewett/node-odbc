@@ -72,6 +72,7 @@ void ODBC::Init(v8::Handle<Object> exports) {
   NODE_ODBC_DEFINE_CONSTANT(constructor_template, FETCH_OBJECT);
   
   // Prototype Methods
+  Nan::SetPrototypeMethod(constructor_template, "getSourcesSync", GetSourcesSync);
   Nan::SetPrototypeMethod(constructor_template, "createConnection", CreateConnection);
   Nan::SetPrototypeMethod(constructor_template, "createConnectionSync", CreateConnectionSync);
 
@@ -153,6 +154,41 @@ NAN_METHOD(ODBC::New) {
 //  DEBUG_PRINTF("ODBC::WatcherCallback\n");
 //  //i don't know if we need to do anything here
 //}
+
+/*
+ * GetSourcesSync
+ */
+
+NAN_METHOD(ODBC::GetSourcesSync) {
+  DEBUG_PRINTF("ODBC::GetSourcesSync\n");
+  Nan::HandleScope scope;
+
+  ODBC* dbo = Nan::ObjectWrap::Unwrap<ODBC>(info.Holder());
+   
+  uv_mutex_lock(&ODBC::g_odbcMutex);
+  
+  UWORD fDirection = SQL_FETCH_FIRST_SYSTEM;
+  SQLRETURN sr;
+  SQLWCHAR szDSN[SQL_MAX_DSN_LENGTH+1];
+  SQLWCHAR szDescription[100];
+  char message[4096];
+  strcpy (message, "");        //Initialize message
+  do {
+      sr = SQLDataSources(dbo->m_hEnv, fDirection,
+          szDSN, sizeof(szDSN), NULL,
+          szDescription,
+          sizeof(szDescription), NULL);
+      if(sr == SQL_SUCCESS || sr == SQL_SUCCESS_WITH_INFO)
+          sprintf(message, "%s%ws|%ws\n", message, szDSN, szDescription);
+      fDirection = SQL_FETCH_NEXT;
+  } while(sr == SQL_SUCCESS || sr == SQL_SUCCESS_WITH_INFO);
+  
+  uv_mutex_unlock(&ODBC::g_odbcMutex);
+
+  Local<String> js_result = Nan::New<String>(message).ToLocalChecked();
+
+  info.GetReturnValue().Set(js_result);
+}
 
 /*
  * CreateConnection

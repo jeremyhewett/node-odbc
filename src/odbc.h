@@ -113,6 +113,7 @@ class ODBC : public Nan::ObjectWrap {
     
     //sync methods
   public:
+    static NAN_METHOD(GetSourcesSync);
     static NAN_METHOD(CreateConnectionSync);
   protected:
     
